@@ -1,0 +1,335 @@
+{
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "dk.birkemosen.esphome-p1reader",
+  "version": "1.0.0",
+  "compatibility": ">=12.0.1",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "ESPHome P1 Reader"
+  },
+  "description": {
+    "en": "Adds support for ESP P1 Reader based on psvanstrom/esphome-p1reader."
+  },
+  "category": [
+    "energy"
+  ],
+  "permissions": [],
+  "icon": "/assets/icon.svg",
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Julian Birkemose",
+    "email": "juliannielsen@gmail.com"
+  },
+  "homepage": "https://github.com/birkemosen/homey-esphome-p1reader/",
+  "support": "https://github.com/birkemosen/homey-esphome-p1reader/",
+  "bugs": {
+    "url": "https://github.com/birkemosen/homey-esphome-p1reader/issues"
+  },
+  "tags": {
+    "en": [
+      "esphome",
+      "p1",
+      "reader",
+      "energy",
+      "psvanstrom"
+    ]
+  },
+  "source": "https://github.com/birkemosen/homey-esphome-p1reader",
+  "brandColor": "#2600d8",
+  "env": {
+    "DEBUG": "esphome-p1reader:*"
+  },
+  "esm": true,
+  "drivers": [
+    {
+      "name": {
+        "en": "esp-p1reader"
+      },
+      "class": "sensor",
+      "capabilities": [
+        "meter_power.consumed",
+        "meter_power.produced",
+        "measure_power.consumed",
+        "measure_power.produced",
+        "measure_power.consumed.l1",
+        "measure_power.produced.l1",
+        "measure_power.consumed.l2",
+        "measure_power.produced.l2",
+        "measure_power.consumed.l3",
+        "measure_power.produced.l3",
+        "measure_voltage.l1",
+        "measure_voltage.l2",
+        "measure_voltage.l3",
+        "measure_current.l1",
+        "measure_current.l2",
+        "measure_current.l3"
+      ],
+      "capabilitiesOptions": {
+        "meter_power.consumed": {
+          "title": {
+            "en": "Cumulative Power Consumed",
+            "da": "Kumulativ Effekt Forbrugt"
+          },
+          "units": "kWh"
+        },
+        "meter_power.produced": {
+          "title": {
+            "en": "Cumulative Power Produced",
+            "da": "Kumulativ Effekt Produceret"
+          },
+          "units": "kWh"
+        },
+        "measure_power.consumed": {
+          "title": {
+            "en": "Power Consumed",
+            "da": "Effekt Forbrugt"
+          },
+          "units": "W"
+        },
+        "measure_power.produced": {
+          "title": {
+            "en": "Power Produced",
+            "da": "Effekt Produceret"
+          },
+          "units": "W"
+        },
+        "measure_power.consumed.l1": {
+          "title": {
+            "en": "Power Consumed L1",
+            "da": "Effekt Forbrugt L1"
+          },
+          "units": "W"
+        },
+        "measure_power.produced.l1": {
+          "title": {
+            "en": "Power Produced L1",
+            "da": "Effekt Produceret L1"
+          },
+          "units": "W"
+        },
+        "measure_power.consumed.l2": {
+          "title": {
+            "en": "Power Consumed L2",
+            "da": "Effekt Forbrugt L2"
+          },
+          "units": "W"
+        },
+        "measure_power.produced.l2": {
+          "title": {
+            "en": "Power Produced L2",
+            "da": "Effekt Produceret L2"
+          },
+          "units": "W"
+        },
+        "measure_power.consumed.l3": {
+          "title": {
+            "en": "Power Consumed L3",
+            "da": "Effekt Forbrugt L3"
+          },
+          "units": "W"
+        },
+        "measure_power.produced.l3": {
+          "title": {
+            "en": "Power Produced L3",
+            "da": "Effekt Produceret L3"
+          },
+          "units": "W"
+        },
+        "measure_voltage.l1": {
+          "title": {
+            "en": "Voltage L1",
+            "da": "Spænding L1"
+          },
+          "units": "V"
+        },
+        "measure_voltage.l2": {
+          "title": {
+            "en": "Voltage L2",
+            "da": "Spænding L2"
+          },
+          "units": "V"
+        },
+        "measure_voltage.l3": {
+          "title": {
+            "en": "Voltage L3",
+            "da": "Spænding L3"
+          },
+          "units": "V"
+        },
+        "measure_current.l1": {
+          "title": {
+            "en": "Current L1",
+            "da": "Strøm L1"
+          },
+          "units": "A"
+        },
+        "measure_current.l2": {
+          "title": {
+            "en": "Current L2",
+            "da": "Strøm L2"
+          },
+          "units": "A"
+        },
+        "measure_current.l3": {
+          "title": {
+            "en": "Current L3",
+            "da": "Strøm L3"
+          },
+          "units": "A"
+        },
+        "measure_power": {
+          "approximated": true
+        }
+      },
+      "energy": {
+        "cumulative": true,
+        "approximation": {
+          "usageConstant": 0.5
+        }
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "lan"
+      ],
+      "discovery": "esp-p1reader",
+      "icon": "/drivers/esphome-p1reader/assets/icon.svg",
+      "images": {
+        "small": "/drivers/esphome-p1reader/assets/images/small.png",
+        "large": "/drivers/esphome-p1reader/assets/images/large.png",
+        "xlarge": "/drivers/esphome-p1reader/assets/images/xlarge.png"
+      },
+      "pair": [
+        {
+          "id": "list_my_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "encryption_key"
+          }
+        },
+        {
+          "id": "encryption_key",
+          "navigation": {
+            "next": "add_my_devices"
+          }
+        },
+        {
+          "id": "add_my_devices",
+          "template": "add_devices"
+        }
+      ],
+      "id": "esphome-p1reader",
+      "settings": [
+        {
+          "type": "group",
+          "label": {
+            "en": "Security",
+            "da": "Sikkerhed"
+          },
+          "children": [
+            {
+              "id": "encryption_key",
+              "type": "text",
+              "label": {
+                "en": "Encryption key",
+                "da": "Krypteringsnøgle"
+              },
+              "hint": {
+                "en": "Required if your ESPHome device is configured with encryption",
+                "da": "Påkrævet hvis din ESPHome-enhed er konfigureret med kryptering"
+              }
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Connection",
+            "da": "Forbindelse"
+          },
+          "children": [
+            {
+              "id": "mac",
+              "type": "label",
+              "label": {
+                "en": "MAC address",
+                "da": "MAC-adresse"
+              },
+              "value": "",
+              "uiComponent": "advanced"
+            },
+            {
+              "id": "ip",
+              "type": "text",
+              "label": {
+                "en": "IP address",
+                "da": "IP-adresse"
+              },
+              "value": "",
+              "uiComponent": "advanced"
+            },
+            {
+              "id": "host",
+              "type": "text",
+              "label": {
+                "en": "Host address",
+                "da": "Hostadresse"
+              },
+              "value": "",
+              "uiComponent": "advanced"
+            },
+            {
+              "id": "port",
+              "type": "text",
+              "label": {
+                "en": "Port",
+                "da": "Port"
+              },
+              "value": "",
+              "uiComponent": "advanced"
+            },
+            {
+              "id": "esp_home_version",
+              "type": "label",
+              "label": {
+                "en": "ESPHome version",
+                "da": "ESPHome version"
+              },
+              "value": "",
+              "uiComponent": "advanced"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "discovery": {
+    "esp-p1reader": {
+      "type": "mdns-sd",
+      "mdns-sd": {
+        "name": "esphomelib",
+        "protocol": "tcp"
+      },
+      "id": "{{txt.mac}}",
+      "conditions": [
+        [
+          {
+            "field": "name",
+            "match": {
+              "type": "string",
+              "value": "esp-p1reader"
+            }
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "settings": {
+    "title": "ESPHome P1 Reader",
+    "ipaddress": "IP Address",
+    "encryptionKey": "Encryption Key"
+  },
+  "error": {
+    "invalid_ip": "Invalid IP address",
+    "connect_failed": "Failed to connect to device",
+    "unavailable": "Device is unavailable",
+    "unavailable_encrypted": "Device requires encryption key"
+  },
+  "pair": {
+    "encryption_key": {
+      "intro": "Please enter the encryption key for your ESPHome device if required:",
+      "label": "Encryption Key",
+      "save": "Save"
+    },
+    "encryption_info": {
+      "title": "Adding Encryption Key After Pairing",
+      "step1": "Open the Homey app on your mobile device",
+      "step2": "Navigate to the 'Devices' tab",
+      "step3": "Select your ESPHome P1 Reader device",
+      "step4": "Tap on the gear icon to open device settings",
+      "step5": "Enter the encryption key in the 'Advanced Settings' section",
+      "note": "Ensure the encryption key is correct to enable secure communication with your device."
+    }
+  }
+}

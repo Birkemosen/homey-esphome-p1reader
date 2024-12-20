@@ -1,0 +1,14 @@
+{
+  "settings": {
+    "title": "ESPHome P1 Reader",
+    "ipaddress": "IP Adresse",
+    "encryptionKey": "Krypteringsnøgle"
+  },
+  "pair": {
+    "encryption_key": {
+      "intro": "Indtast krypteringsnøglen for din ESPHome-enhed, hvis den er påkrævet:",
+      "label": "Krypteringsnøgle",
+      "save": "Gem"
+    }
+  }
+}

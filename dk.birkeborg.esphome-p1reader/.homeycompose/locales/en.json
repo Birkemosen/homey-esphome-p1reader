@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "title": "ESPHome P1 Reader",
+    "ipaddress": "IP Address",
+    "encryptionKey": "Encryption Key"
+  },
+  "pair": {
+    "encryption_info": {
+      "title": "Adding Encryption Key After Pairing",
+      "step1": "Open the Homey app on your mobile device",
+      "step2": "Navigate to the 'Devices' tab",
+      "step3": "Select your ESPHome P1 Reader device",
+      "step4": "Tap on the gear icon to open device settings",
+      "step5": "Enter the encryption key in the 'Advanced Settings' section",
+      "note": "Ensure the encryption key is correct to enable secure communication with your device."
+    }
+  }
+}

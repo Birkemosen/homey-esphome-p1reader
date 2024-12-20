@@ -1,0 +1,48 @@
+{
+  "id": "dk.birkemosen.esphome-p1reader",
+  "version": "1.0.0",
+  "compatibility": ">=12.0.1",
+  "sdk": 3,
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "ESPHome P1 Reader"
+  },
+  "description": {
+    "en": "Adds support for ESP P1 Reader based on psvanstrom/esphome-p1reader."
+  },
+  "category": [
+    "energy"
+  ],
+  "permissions": [],
+  "icon": "/assets/icon.svg",
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Julian Birkemose",
+    "email": "juliannielsen@gmail.com"
+  },
+  "homepage": "https://github.com/birkemosen/homey-esphome-p1reader/",
+  "support": "https://github.com/birkemosen/homey-esphome-p1reader/",
+  "bugs": {
+    "url": "https://github.com/birkemosen/homey-esphome-p1reader/issues"
+  },
+  "tags": {
+    "en": [
+      "esphome",
+      "p1",
+      "reader",
+      "energy",
+      "psvanstrom"
+    ]
+  },
+  "source": "https://github.com/birkemosen/homey-esphome-p1reader",
+  "brandColor": "#2600d8",
+  "env": {
+    "DEBUG": "esphome-p1reader:*"
+  }
+}

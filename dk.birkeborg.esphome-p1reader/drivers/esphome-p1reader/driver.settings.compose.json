@@ -1,0 +1,82 @@
+[
+  {
+    "type": "group",
+    "label": {
+      "en": "Security",
+      "da": "Sikkerhed"
+    },
+    "children": [
+      {
+        "id": "encryption_key",
+        "type": "text",
+        "label": {
+          "en": "Encryption key",
+          "da": "Krypteringsnøgle"
+        },
+        "hint": {
+          "en": "Required if your ESPHome device is configured with encryption",
+          "da": "Påkrævet hvis din ESPHome-enhed er konfigureret med kryptering"
+        }
+      }
+    ]
+  },
+  {
+    "type": "group",
+    "label": {
+      "en": "Connection",
+      "da": "Forbindelse"
+    },
+    "children": [
+      {
+        "id": "mac",
+        "type": "label",
+        "label": {
+          "en": "MAC address",
+          "da": "MAC-adresse"
+        },
+        "value": "",
+        "uiComponent": "advanced"
+      },
+      {
+        "id": "ip",
+        "type": "text",
+        "label": {
+          "en": "IP address",
+          "da": "IP-adresse"
+        },
+        "value": "",
+        "uiComponent": "advanced"
+      },
+      {
+        "id": "host",
+        "type": "text",
+        "label": {
+          "en": "Host address",
+          "da": "Hostadresse"
+        },
+        "value": "",
+        "uiComponent": "advanced"
+      },
+      {
+        "id": "port",
+        "type": "text",
+        "label": {
+          "en": "Port",
+          "da": "Port"
+        },
+        "value": "",
+        "uiComponent": "advanced"
+      },
+      {
+        "id": "esp_home_version",
+        "type": "label",
+        "label": {
+          "en": "ESPHome version",
+          "da": "ESPHome version"
+        },
+        "value": "",
+        "uiComponent": "advanced"
+      }
+    ]
+  }
+]

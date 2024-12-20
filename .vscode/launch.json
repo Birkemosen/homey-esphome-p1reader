@@ -1,0 +1,38 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch App",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/dk.birkeborg.esphome-p1reader",
+      "runtimeExecutable": "homey",
+      "args": [
+        "app",
+        "run",
+        "--remote"
+      ],
+      "outputCapture": "std",
+      "env": {
+        "DEBUG": "esphome-p1reader:*"
+      },
+      "serverReadyAction": {
+        "pattern": "Debugger listening on",
+        "action": "startDebugging",
+        "name": "Attach to Homey"
+      }
+    },
+    {
+      "name": "Attach to Homey",
+      "type": "node",
+      "request": "attach",
+      "address": "192.168.86.56",
+      "port": 9222,
+      "localRoot": "${workspaceFolder}/dk.birkeborg.esphome-p1reader",
+      "remoteRoot": "/app"
+    }
+  ]
+}
