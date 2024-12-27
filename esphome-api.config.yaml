@@ -1,0 +1,26 @@
+# ESPHome API Configuration
+# Uncomment the entities you need
+
+# Base functionality (always included)
+base:
+  - connection
+  - client
+
+# Entity types
+entities:
+  - sensor       # Basic sensor support
+  - text_sensor  # Text-based sensor support
+#  - binary_sensor
+#  - button
+#  - camera
+#  - climate
+#  - cover
+#  - fan
+#  - light
+#  - lock
+#  - media_player
+#  - number
+#  - select
+#  - siren
+#  - switch
+#  - text 
