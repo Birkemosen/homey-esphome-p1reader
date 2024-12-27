@@ -31,7 +31,7 @@ npx esbuild "$TEMP_DIR/repo/index.js" \
 
 # Create wrapper
 echo "Creating wrapper..."
-cat > "$BUILD_DIR/index.ts" << 'EOL'
+cat > "$BUILD_DIR/index.mts" << 'EOL'
 // Local wrapper around @2colors/esphome-native-api with additional functionality
 import type { ConnectionConfig } from '@2colors/esphome-native-api';
 import { Connection as ESPHomeConnection } from '@2colors/esphome-native-api';
@@ -57,24 +57,6 @@ export class Connection extends ESPHomeConnection {
 }
 EOL
 
-# Copy package.json for types resolution
-echo "Creating package.json for types..."
-cat > "$BUILD_DIR/package.json" << 'EOL'
-{
-  "dependencies": {
-    "@2colors/esphome-native-api": "file:temp/repo"
-  }
-}
-EOL
-
-# Install dependencies for wrapper
-echo "Installing wrapper dependencies..."
-(cd "$BUILD_DIR" && npm install)
-
-# Compile wrapper
-echo "Compiling wrapper..."
-npx tsc "$BUILD_DIR/index.ts" --declaration --esModuleInterop --target ES2020 --module ES2020 --moduleResolution node
-
 # Clean and create target directory
 echo "Preparing target directory..."
 rm -rf "$TARGET_LIB_DIR"
@@ -83,8 +65,8 @@ mkdir -p "$TARGET_LIB_DIR"
 # Copy built files to target
 echo "Copying files to target..."
 cp "$BUILD_DIR/esphome-api.js" "$TARGET_LIB_DIR/"
-cp "$BUILD_DIR/index.js" "$TARGET_LIB_DIR/"
-cp "$BUILD_DIR/index.d.ts" "$TARGET_LIB_DIR/"
+cp "$BUILD_DIR/index.mts" "$TARGET_LIB_DIR/index.mts"
+cp "$TEMP_DIR/repo/index.d.ts" "$TARGET_LIB_DIR/esphome-api.d.ts"
 
 # Clean up
 rm -rf "$TEMP_DIR"
