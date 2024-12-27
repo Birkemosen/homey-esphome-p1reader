@@ -7,13 +7,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="$SCRIPT_DIR/build"
 TEMP_DIR="$SCRIPT_DIR/temp"
 TARGET_LIB_DIR="$SCRIPT_DIR/dk.birkeborg.esphome-p1reader/lib/esphome-api"
-CONFIG_FILE="$SCRIPT_DIR/esphome-api.config.yaml"
-
-# Check if config file exists
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Error: Config file not found at $CONFIG_FILE"
-    exit 1
-fi
 
 # Clean up any existing temp/build directories
 rm -rf "$TEMP_DIR"
@@ -91,75 +84,60 @@ sed -i.bak 's/require(.google-protobuf.)/require(\x27..\/minimal-protobuf\x27)/'
 sed -i.bak 's/require(.google-protobuf.)/require(\x27..\/minimal-protobuf\x27)/' "$TEMP_DIR/repo/lib/protoc/api_options_pb.js"
 sed -i.bak 's/require(.google-protobuf\/google\/protobuf\/descriptor_pb.js.)/require(\x27..\/minimal-protobuf\x27)/' "$TEMP_DIR/repo/lib/protoc/api_options_pb.js"
 
-# Parse config and create imports
-echo "Creating customized index file..."
-
 # Create the custom index file
-{
-    echo "// Generated index file - DO NOT EDIT"
-    echo
-    echo "// Use pre-compiled protobuf messages"
-    echo "const protobuf = require('./lib/minimal-protobuf');"
-    echo "const api = require('./lib/protoc/api_pb');"
-    echo "const apiOptions = require('./lib/protoc/api_options_pb');"
-    echo
-    echo "// Base imports"
-    echo "const { Connection } = require('./lib/connection');"
-    echo
+echo "Creating customized index file..."
+cat > "$TEMP_DIR/repo/custom-index.js" << 'EOL'
+// Generated index file - DO NOT EDIT
 
-    # Add entity imports based on config
-    echo "// Entity imports"
-    while IFS= read -r line; do
-        if [[ $line =~ ^[[:space:]]*-[[:space:]]*(.*)[[:space:]]*$ ]]; then
-            ENTITY="${BASH_REMATCH[1]}"
-            if [[ ! $ENTITY =~ ^#.* ]]; then  # Skip commented lines
-                ENTITY_CLASS="$(tr '[:lower:]' '[:upper:]' <<< ${ENTITY:0:1})${ENTITY:1}"
-                ENTITY_FILE="${ENTITY_CLASS}"
-                if [[ $ENTITY == "text_sensor" ]]; then
-                    ENTITY_FILE="TextSensor"
-                    ENTITY_CLASS="TextSensor"
-                fi
-                if [ -f "$TEMP_DIR/repo/lib/entities/${ENTITY_FILE}.js" ]; then
-                    echo "const { ${ENTITY_CLASS} } = require('./lib/entities/${ENTITY_FILE}');"
-                fi
-            fi
-        fi
-    done < <(grep "^[[:space:]]*-" "$CONFIG_FILE")
-    echo
+// Use pre-compiled protobuf messages
+const protobuf = require('./lib/minimal-protobuf');
+const api = require('./lib/protoc/api_pb');
+const apiOptions = require('./lib/protoc/api_options_pb');
 
-    # Add exports
-    echo "// Exports"
-    echo "module.exports = {"
-    echo "    Connection,"
-    echo "    api,"
-    echo "    apiOptions,"
-    
-    # Add entity exports
-    FIRST=true
-    while IFS= read -r line; do
-        if [[ $line =~ ^[[:space:]]*-[[:space:]]*(.*)[[:space:]]*$ ]]; then
-            ENTITY="${BASH_REMATCH[1]}"
-            if [[ ! $ENTITY =~ ^#.* ]]; then  # Skip commented lines
-                ENTITY_CLASS="$(tr '[:lower:]' '[:upper:]' <<< ${ENTITY:0:1})${ENTITY:1}"
-                ENTITY_FILE="${ENTITY_CLASS}"
-                if [[ $ENTITY == "text_sensor" ]]; then
-                    ENTITY_FILE="TextSensor"
-                    ENTITY_CLASS="TextSensor"
-                fi
-                if [ -f "$TEMP_DIR/repo/lib/entities/${ENTITY_FILE}.js" ]; then
-                    if [ "$FIRST" = true ]; then
-                        FIRST=false
-                    else
-                        echo ","
-                    fi
-                    echo -n "    ${ENTITY_CLASS}"
-                fi
-            fi
-        fi
-    done < <(grep "^[[:space:]]*-" "$CONFIG_FILE")
-    echo
-    echo "};"
-} > "$TEMP_DIR/repo/custom-index.js"
+// Base imports
+const { Connection } = require('./lib/connection');
+
+// Import all entities
+const { BinarySensor } = require('./lib/entities/BinarySensor');
+const { Button } = require('./lib/entities/Button');
+const { Camera } = require('./lib/entities/Camera');
+const { Climate } = require('./lib/entities/Climate');
+const { Cover } = require('./lib/entities/Cover');
+const { Fan } = require('./lib/entities/Fan');
+const { Light } = require('./lib/entities/Light');
+const { Lock } = require('./lib/entities/Lock');
+const { MediaPlayer } = require('./lib/entities/MediaPlayer');
+const { Number } = require('./lib/entities/Number');
+const { Select } = require('./lib/entities/Select');
+const { Sensor } = require('./lib/entities/Sensor');
+const { Siren } = require('./lib/entities/Siren');
+const { Switch } = require('./lib/entities/Switch');
+const { Text } = require('./lib/entities/Text');
+const { TextSensor } = require('./lib/entities/TextSensor');
+
+// Exports
+module.exports = {
+    Connection,
+    api,
+    apiOptions,
+    BinarySensor,
+    Button,
+    Camera,
+    Climate,
+    Cover,
+    Fan,
+    Light,
+    Lock,
+    MediaPlayer,
+    Number,
+    Select,
+    Sensor,
+    Siren,
+    Switch,
+    Text,
+    TextSensor
+};
+EOL
 
 # First do a build with metafile to analyze
 echo "Analyzing bundle composition..."
