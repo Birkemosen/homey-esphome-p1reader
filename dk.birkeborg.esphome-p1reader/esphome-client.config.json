@@ -1,0 +1,19 @@
+{
+  "features": {
+    "sensors": true,
+    "switches": false,
+    "binarySensors": false,
+    "climate": false,
+    "lights": false,
+    "covers": false,
+    "fans": false
+  },
+  "authentication": {
+    "useEncryption": true,
+    "usePassword": true
+  },
+  "connection": {
+    "useReconnect": true,
+    "usePing": true
+  }
+}

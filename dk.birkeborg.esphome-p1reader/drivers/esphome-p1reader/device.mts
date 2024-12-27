@@ -1,6 +1,12 @@
 import Homey from 'homey';
 import ESPHomeClient from '../../lib/esphome.mjs';
-import Debug from 'debug';
+
+// Simple debug function that only logs in development
+const debug = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[esphome-p1reader:device]', ...args);
+  }
+};
 
 const CONNECT_TIMEOUT = 30 * 1000;
 
@@ -46,7 +52,7 @@ function getErrorMessage(error: unknown) {
 }
 
 class EspHomeP1ReaderDevice extends Homey.Device {
-  private debug = Debug('esphome-p1reader:device');
+  private debug = debug;
   private client?: ESPHomeClient;
 
   /**
@@ -208,8 +214,12 @@ class EspHomeP1ReaderDevice extends Homey.Device {
 
   private async handleCapabilityUpdate(type: CapabilityType, value: number) {
     try {
+      this.debug('Handling capability update', { type, value, hasCapability: this.hasCapability(type) });
       if (this.hasCapability(type)) {
         await this.setCapabilityValue(type, value);
+        this.debug('Successfully updated capability value', { type, value });
+      } else {
+        this.debug('Device does not have capability', { type });
       }
     } catch (error) {
       this.error(`Failed to set capability value for ${type}:`, getErrorMessage(error));

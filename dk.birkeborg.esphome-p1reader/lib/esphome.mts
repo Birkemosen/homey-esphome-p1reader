@@ -1,9 +1,12 @@
 import { EventEmitter } from 'events';
-import { Connection } from '@2colors/esphome-native-api';
-import Debug from 'debug';
+import { Connection } from './esphome-api/index.mjs';
 
-const DEBUG_ENABLED = process.env.NODE_ENV === 'development';
-const debug = DEBUG_ENABLED ? Debug('esphome-p1reader:esphome') : () => { };
+// Simple debug function that only logs in development
+const debug = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[esphome-p1reader:esphome]', ...args);
+  }
+};
 
 export interface EntityState {
   key: number;
@@ -38,6 +41,9 @@ class ESPHomeClient extends EventEmitter {
   private readonly POOL_SIZE = 20;
   private measurementPool: Array<{ type: string, value: number }>;
   private readonly phaseMap: Record<string, string> = {
+    '1': 'l1',
+    '2': 'l2',
+    '3': 'l3',
     'phase_1': 'l1',
     'phase_2': 'l2',
     'phase_3': 'l3'
@@ -46,7 +52,9 @@ class ESPHomeClient extends EventEmitter {
     CONSUMED: 'measure_power.consumed',
     PRODUCED: 'measure_power.produced',
     VOLTAGE: 'measure_voltage',
-    CURRENT: 'measure_current'
+    CURRENT: 'measure_current',
+    METER_CONSUMED: 'meter_power.consumed',
+    METER_PRODUCED: 'meter_power.produced'
   } as const;
 
   constructor(hostSettings: any) {
@@ -112,15 +120,21 @@ class ESPHomeClient extends EventEmitter {
     let measurement = this.getMeasurementObject('', 0);
 
     try {
-      debug('Processing entity', { objectId, state });
+      debug('Processing entity', {
+        objectId,
+        state,
+        name: entity.entity.name,
+        key: entity.entity.key,
+        component: entity.component
+      });
       switch (objectId) {
         // Cumulative measurements (kWh)
         case 'cumulative_active_import':
-          measurement = this.getMeasurementObject(this.measurementTypes.CONSUMED, state);
+          measurement = this.getMeasurementObject(this.measurementTypes.METER_CONSUMED, state);
           this.emit('measurement', measurement);
           break;
         case 'cumulative_active_export':
-          measurement = this.getMeasurementObject(this.measurementTypes.PRODUCED, state);
+          measurement = this.getMeasurementObject(this.measurementTypes.METER_PRODUCED, state);
           this.emit('measurement', measurement);
           break;
 
@@ -136,29 +150,45 @@ class ESPHomeClient extends EventEmitter {
         case 'momentary_active_import_phase_1':
         case 'momentary_active_import_phase_2':
         case 'momentary_active_import_phase_3':
-          const importPhase = this.phaseMap[objectId.split('_').pop()!];
-          measurement = this.getMeasurementObject(`${this.measurementTypes.CONSUMED}.${importPhase}`, state * 1000);
+          const importPhasePart = objectId.split('_').pop();
+          debug('Phase mapping for import', { objectId, importPhasePart, phaseMap: this.phaseMap });
+          const importPhase = this.phaseMap[importPhasePart || ''] || 'l1';
+          const importMeasurement = `${this.measurementTypes.CONSUMED}.${importPhase}`;
+          debug('Processing phase import measurement', { objectId, importPhase, importMeasurement, value: state * 1000 });
+          measurement = this.getMeasurementObject(importMeasurement, state * 1000);
           this.emit('measurement', measurement);
           break;
         case 'momentary_active_export_phase_1':
         case 'momentary_active_export_phase_2':
         case 'momentary_active_export_phase_3':
-          const exportPhase = this.phaseMap[objectId.split('_').pop()!];
-          measurement = this.getMeasurementObject(`${this.measurementTypes.PRODUCED}.${exportPhase}`, state * 1000);
+          const exportPhasePart = objectId.split('_').pop();
+          debug('Phase mapping for export', { objectId, exportPhasePart, phaseMap: this.phaseMap });
+          const exportPhase = this.phaseMap[exportPhasePart || ''] || 'l1';
+          const exportMeasurement = `${this.measurementTypes.PRODUCED}.${exportPhase}`;
+          debug('Processing phase export measurement', { objectId, exportPhase, exportMeasurement, value: state * 1000 });
+          measurement = this.getMeasurementObject(exportMeasurement, state * 1000);
           this.emit('measurement', measurement);
           break;
         case 'voltage_phase_1':
         case 'voltage_phase_2':
         case 'voltage_phase_3':
-          const voltagePhase = this.phaseMap[objectId.split('_').pop()!];
-          measurement = this.getMeasurementObject(`${this.measurementTypes.VOLTAGE}.${voltagePhase}`, state);
+          const voltagePhasePart = objectId.split('_').pop();
+          debug('Phase mapping for voltage', { objectId, voltagePhasePart, phaseMap: this.phaseMap });
+          const voltagePhase = this.phaseMap[voltagePhasePart || ''] || 'l1';
+          const voltageMeasurement = `${this.measurementTypes.VOLTAGE}.${voltagePhase}`;
+          debug('Processing phase voltage measurement', { objectId, voltagePhase, voltageMeasurement, value: state });
+          measurement = this.getMeasurementObject(voltageMeasurement, state);
           this.emit('measurement', measurement);
           break;
         case 'current_phase_1':
         case 'current_phase_2':
         case 'current_phase_3':
-          const currentPhase = this.phaseMap[objectId.split('_').pop()!];
-          measurement = this.getMeasurementObject(`${this.measurementTypes.CURRENT}.${currentPhase}`, state);
+          const currentPhasePart = objectId.split('_').pop();
+          debug('Phase mapping for current', { objectId, currentPhasePart, phaseMap: this.phaseMap });
+          const currentPhase = this.phaseMap[currentPhasePart || ''] || 'l1';
+          const currentMeasurement = `${this.measurementTypes.CURRENT}.${currentPhase}`;
+          debug('Processing phase current measurement', { objectId, currentPhase, currentMeasurement, value: state });
+          measurement = this.getMeasurementObject(currentMeasurement, state);
           this.emit('measurement', measurement);
           break;
       }

@@ -1,6 +1,8 @@
 {
+  "id": "esphome-p1reader",
   "name": {
-    "en": "esp-p1reader"
+    "en": "ESPHome P1 Reader",
+    "da": "ESPHome P1 Måler"
   },
   "class": "sensor",
   "capabilities": [
@@ -133,16 +135,12 @@
         "da": "Strøm L3"
       },
       "units": "A"
-    },
-    "measure_power": {
-      "approximated": true
     }
   },
   "energy": {
     "cumulative": true,
-    "approximation": {
-      "usageConstant": 0.5
-    }
+    "cumulativeImportedCapability": "meter_power.consumed",
+    "cumulativeExportedCapability": "meter_power.produced"
   },
   "platforms": [
     "local"
