@@ -1,11 +1,16 @@
 import { EventEmitter } from 'events';
-import { Connection } from './esphome-api/index.mjs';
+import { EspDevice as BaseEspDevice } from './esphome-ts/api/espDevice.mts';
+
+// Extend the EspDevice type to include EventEmitter methods
+interface EspDevice extends BaseEspDevice {
+  on(event: string, listener: (...args: any[]) => void): this;
+  off(event: string, listener: (...args: any[]) => void): this;
+  emit(event: string, ...args: any[]): boolean;
+}
 
 // Simple debug function that only logs in development
 const debug = (...args: any[]) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[esphome-p1reader:esphome]', ...args);
-  }
+  console.log('[esphome-p1reader:esphome]', ...args);
 };
 
 export interface EntityState {
@@ -33,7 +38,7 @@ export interface Entity {
 }
 
 class ESPHomeClient extends EventEmitter {
-  private connection: Connection;
+  private connection: EspDevice;
   private entities: Map<number, Entity> = new Map();
   private isConnecting: boolean = false;
   private isConnected: boolean = false;
@@ -61,31 +66,25 @@ class ESPHomeClient extends EventEmitter {
     super();
     // Pre-allocate pool objects
     this.measurementPool = Array.from({ length: this.POOL_SIZE }, () => ({ type: '', value: 0 }));
-    const options = {
-      host: hostSettings.host,
-      port: hostSettings.port,
-      clientInfo: 'Homey - ESPHome P1 Reader',
-      clearSession: false,
-      initializeDeviceInfo: true,
-      initializeListEntities: true,
-      initializeSubscribeStates: true,
-      initializeSubscribeLogs: false,
-      initializeSubscribeBLEAdvertisements: false,
-      reconnect: true,
-      reconnectInterval: 15000,
-      pingInterval: 15000,
-      pingAttempts: 3,
-      encryptionKey: hostSettings.encryption_key,
-      password: !hostSettings.encryption_key ? hostSettings.password : undefined
-    };
 
-    debug('Connecting with settings:', {
+    debug('Initializing ESPHome client with settings:', {
       host: hostSettings.host,
       port: hostSettings.port,
       hasEncryptionKey: !!hostSettings.encryption_key
     });
 
-    this.connection = new Connection(options);
+    // Create the connection using BaseEspDevice but cast to our extended interface
+    this.connection = new BaseEspDevice(
+      hostSettings.host,
+      !hostSettings.encryption_key ? hostSettings.password : '',
+      hostSettings.port
+    ) as EspDevice;
+
+    // Setup event listeners
+    this.connection.on('error', this.errorHandler);
+    this.connection.on('disconnected', this.disconnectedHandler);
+    this.connection.on('discovered', this.discoveredHandler);
+    this.connection.on('stateEvent', this.sensorStateHandler);
   }
 
   protected onEntityState(entityState: EntityState) {
@@ -216,21 +215,8 @@ class ESPHomeClient extends EventEmitter {
     this.isConnecting = true;
 
     try {
-      // Remove existing listeners before adding new ones
-      this.connection.off('error', this.errorHandler);
-      this.connection.off('disconnected', this.disconnectedHandler);
-      this.connection.off('authorized', this.authorizedHandler);
-      this.connection.off('message.SensorStateResponse', this.sensorStateHandler);
-
-      // Setup event listeners
-      this.connection.on('error', this.errorHandler);
-      this.connection.on('disconnected', this.disconnectedHandler);
-      this.connection.on('authorized', this.authorizedHandler);
-      this.connection.on('message.SensorStateResponse', this.sensorStateHandler);
-
-      // Connect
-      await this.connection.connect();
-      debug('Connected');
+      // The connection is established automatically by EspDevice
+      debug('Connection initiated');
     } catch (error) {
       debug('Failed to connect:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -259,7 +245,7 @@ class ESPHomeClient extends EventEmitter {
     this.entities.clear();
     this.measurementPool = Array.from({ length: this.POOL_SIZE }, () => ({ type: '', value: 0 }));
 
-    await this.connection.disconnect();
+    this.connection.terminate();
   }
 
   async getEntities(): Promise<Entity[]> {
@@ -294,7 +280,7 @@ class ESPHomeClient extends EventEmitter {
     return obj;
   }
 
-  private errorHandler(error: unknown) {
+  private errorHandler = (error: unknown) => {
     debug('Connection error:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes('Bad format: Encryption expected')) {
@@ -304,27 +290,17 @@ class ESPHomeClient extends EventEmitter {
     this.emit('error', error);
   }
 
-  private disconnectedHandler() {
+  private disconnectedHandler = () => {
     debug('Disconnected');
     this.isConnecting = false;
     this.isConnected = false;
     this.emit('disconnected');
   }
 
-  private authorizedHandler = async () => {
-    debug('Authorized');
+  private discoveredHandler = () => {
+    debug('Device discovered');
     this.isConnected = true;
-    try {
-      const entities = await this.connection.listEntitiesService();
-      for (const entity of entities) {
-        debug('Got entity', entity);
-        this.entities.set(entity.entity.key, entity);
-      }
-      await this.subscribeToStates();
-    } catch (error) {
-      debug('Error during authorization:', error);
-      this.emit('error', error);
-    }
+    this.emit('connected');
   }
 
   private sensorStateHandler = (state: any) => {

@@ -26,15 +26,15 @@
   "capabilitiesOptions": {
     "meter_power.consumed": {
       "title": {
-        "en": "Cumulative Power Consumed",
-        "da": "Kumulativ Effekt Forbrugt"
+        "en": "Meter Reading Consumed",
+        "da": "Elmåler Forbrug"
       },
       "units": "kWh"
     },
     "meter_power.produced": {
       "title": {
-        "en": "Cumulative Power Produced",
-        "da": "Kumulativ Effekt Produceret"
+        "en": "Meter Reading Produced",
+        "da": "Elmåler Produktion"
       },
       "units": "kWh"
     },

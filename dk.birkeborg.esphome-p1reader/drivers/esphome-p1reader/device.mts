@@ -3,9 +3,7 @@ import ESPHomeClient from '../../lib/esphome.mjs';
 
 // Simple debug function that only logs in development
 const debug = (...args: any[]) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[esphome-p1reader:device]', ...args);
-  }
+  console.log('[esphome-p1reader:device]', ...args);
 };
 
 const CONNECT_TIMEOUT = 30 * 1000;

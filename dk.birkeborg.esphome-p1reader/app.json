@@ -75,15 +75,15 @@
       "capabilitiesOptions": {
         "meter_power.consumed": {
           "title": {
-            "en": "Cumulative Power Consumed",
-            "da": "Kumulativ Effekt Forbrugt"
+            "en": "Meter Reading Consumed",
+            "da": "Elmåler Forbrug"
           },
           "units": "kWh"
         },
         "meter_power.produced": {
           "title": {
-            "en": "Cumulative Power Produced",
-            "da": "Kumulativ Effekt Produceret"
+            "en": "Meter Reading Produced",
+            "da": "Elmåler Produktion"
           },
           "units": "kWh"
         },
@@ -199,6 +199,11 @@
       ],
       "discovery": "esp-p1reader",
       "icon": "/drivers/esphome-p1reader/assets/icon.svg",
+      "images": {
+        "small": "/drivers/esphome-p1reader/assets/images/small.png",
+        "large": "/drivers/esphome-p1reader/assets/images/large.png",
+        "xlarge": "/drivers/esphome-p1reader/assets/images/xlarge.png"
+      },
       "pair": [
         {
           "id": "list_my_devices",
