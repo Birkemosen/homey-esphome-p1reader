@@ -1,0 +1,51 @@
+
+jobs:
+  main:
+    name: Update Homey App Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: update_app_version
+        name: Update Homey App Version
+        uses: athombv/github-action-homey-app-version@master
+        with:
+          changelog: ${{ inputs.changelog }}
+
+          version: ${{ inputs.version }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Commit & Push
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "Update Homey App Version to v${{ steps.update_app_version.outputs.version }}"
+          git tag "v${{ steps.update_app_version.outputs.version }}"
+
+          git push origin HEAD --tags
+          gh release create "v${{ steps.update_app_version.outputs.version }}" -t "v${{ steps.update_app_version.outputs.version }}" --notes "" --generate-notes
+name: Update Homey App Version
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: Changelog
+        required: true
+
+        type: string
+      version:
+        default: patch
+        description: Version
+        options:
+          - major
+          - minor
+          - patch
+        required: true
+        type: choice
+# Needed in order to push the commit and create a release
+permissions:
+  contents: write
+

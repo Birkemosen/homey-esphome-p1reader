@@ -1,0 +1,49 @@
+{
+  "name": "dk.birkemosen.esphome-p1reader",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "format": "prettier . --check",
+    "format:docs": "prettier README.md --write",
+    "format:fix": "prettier . --write",
+    "generate-proto": "node scripts/generate-protos.mjs",
+    "lint": "eslint .",
+    "prepare": "npm run generate-proto && npm run format:docs && tsc",
+    "publish": "homey app publish",
+    "start": "homey app run",
+    "debug": "DEBUG=1 homey app run --remote",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.5",
+    "@noble/ciphers": "^1.3.0",
+    "@richardhopton/noise-c.wasm": "^0.5.0",
+    "@types/ws": "^8.18.1",
+    "bonjour": "^3.5.0",
+    "bonjour-service": "^1.3.0",
+    "color-convert": "^2.0.1",
+    "events": "^3.3.0",
+    "source-map-support": "^0.5.21",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.2.5",
+    "@tsconfig/node18": "^18.2.4",
+    "@types/bonjour": "^3.5.13",
+    "@types/color-convert": "^2.0.4",
+    "@types/events": "^3.0.3",
+    "@types/homey": "npm:homey-apps-sdk-v3-types@^0.3.11",
+    "@types/node": "^22.15.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "@typescript-eslint/parser": "^8.31.0",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-import-resolver-typescript": "^4.3.4",
+    "eslint-plugin-import-x": "^4.10.6",
+    "eslint-plugin-perfectionist": "^4.12.2",
+    "homey": "3.7.15",
+    "prettier-plugin-packagejson": "^2.5.10",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0"
+  }
+}

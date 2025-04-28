@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "bonjour": "^3.5.0",
+    "bonjour-service": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/bonjour": "^3.5.13",
+    "@types/bonjour-service": "^1.2.3"
+  }
+}

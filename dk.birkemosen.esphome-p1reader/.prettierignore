@@ -1,0 +1,6 @@
+*.html
+**/dist.css
+/.homeycompose/app.json
+/app.json
+/locales/
+/README.md
