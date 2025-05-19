@@ -1,409 +1,317 @@
 import Homey from 'homey';
-import { Client } from '../../lib/esphome-ts/api/client/client.mts';
-import { P1Reader, type CapabilityType } from '../../lib/p1reader.mts';
-import net from 'net';
+import P1Reader from '../../lib/p1reader.mts';
 
-// Simple debug function that only logs in development
-const debug = (...args: any[]) => {
-  if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG']) {
-    console.log('[esphome-p1reader:device]', ...args);
-  }
-};
+// Constants
+const DEBUG_PREFIX = '[esphome-p1reader:device]';
+const DEFAULT_PORT = 6053;
+const KEEPALIVE_INTERVAL = 15;
+
+// Types
+interface DeviceSettings {
+  ip?: string;
+  port?: number;
+  encryptionKey?: string;
+}
+
+interface ClientSettings {
+  host: string;
+  port: number;
+  encryptionKey?: string;
+}
 
 interface DiscoveryResult {
   id: string;
   lastSeen: Date;
   address?: string;
-  host?: string;
   port?: number;
-  name?: string;
-  mac?: string;
-  version?: string;
-  platform?: string;
-  board?: string;
+  host?: string;
   txt?: {
     version?: string;
-    mac?: string;
-    platform?: string;
-    board?: string;
-    friendly_name?: string;
   };
 }
 
-class EspHomeP1ReaderDevice extends Homey.Device {
-  private readonly debug = debug;
-  private device?: Client;
-  private p1Reader?: P1Reader;
+type CapabilityType =
+  | 'measure_power.consumed' | 'measure_power.produced'
+  | 'meter_power.consumed' | 'meter_power.produced'
+  | `measure_power.${'consumed' | 'produced'}.l${1 | 2 | 3}`
+  | `measure_voltage.l${1 | 2 | 3}`
+  | `measure_current.l${1 | 2 | 3}`;
 
-  public override async onInit() {
-    this.log('ESPHome P1 Reader device has been initialized');
+// Debug utility
+const debug = (...args: any[]) => {
+  if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG'] === 'true') {
+    console.log(DEBUG_PREFIX, ...args);
+  }
+};
+
+// Error handling utility
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  return String(error);
+};
+
+class EspHomeP1ReaderDevice extends Homey.Device {
+  private client?: P1Reader;
+  private readonly debug = debug;
+
+  /**
+   * onInit is called when the device is initialized.
+   */
+  override async onInit(): Promise<void> {
+    this.debug('Device initializing');
 
     try {
-      // Get the initial settings from the device data
       const deviceData = this.getData();
-      const currentSettings = this.getSettings();
+      const currentSettings = this.getSettings() as DeviceSettings;
 
-      this.debug('Data and settings:', { currentSettings, deviceData });
+      this.debug('Initial data and settings:', { deviceData, currentSettings });
 
-      // Get the encryption key from the driver
-      const driver = this.driver as any;
-      this.debug('Driver encryption key:', driver.encryption_key);
-      this.debug('Current settings encryption key:', currentSettings.encryption_key);
+      // Handle encryption key from driver
+      await this.handleDriverEncryptionKey(currentSettings);
 
-      if (driver.encryption_key) {
-        this.debug('Found encryption key in driver:', driver.encryption_key);
-        await this.setSettings({
-          encryption_key: driver.encryption_key,
-          port: String(currentSettings.port)
-        });
-        currentSettings.encryption_key = driver.encryption_key;
-        this.debug('Updated settings with encryption key:', currentSettings.encryption_key);
-      }
-
-      this.debug('Current settings:', currentSettings);
-
-      // Ensure we have required settings
-      if (!currentSettings.ip && !currentSettings.host) {
-        throw new Error('No IP address or hostname configured');
-      }
-
-      // Setup the client with the settings
+      // Setup the client
       await this.setupClient({
-        host: currentSettings.ip || currentSettings.host,
-        port: Number(currentSettings.port),
-        encryptionKey: currentSettings.encryption_key
+        host: currentSettings.ip as string,
+        port: Number(currentSettings.port) || DEFAULT_PORT,
+        encryptionKey: currentSettings.encryptionKey
       });
-
-      this.debug('Device initialization completed successfully');
     } catch (error) {
-      this.error('Failed to initialize device:', error);
-      this.setUnavailable(getErrorMessage(error));
+      this.error('Failed to initialize device:', getErrorMessage(error));
+      throw error;
     }
   }
 
   /**
-   * OnAdded is called when the user adds the device, called just after pairing.
+   * Handle encryption key from driver
    */
-  public override async onAdded() {
-    this.log('ESPHome P1 Reader has been added');
-
-    // Get the encryption key from the driver and save it to device settings
-    const driver = this.driver as any;
+  private async handleDriverEncryptionKey(currentSettings: DeviceSettings): Promise<void> {
+    const driver = this.driver as { encryption_key?: string };
     if (driver.encryption_key) {
-      this.log('Saving encryption key from driver to device settings', driver.encryption_key);
-      await this.setSettings({ encryption_key: driver.encryption_key });
+      this.debug('Found encryption key in driver');
+      await this.setSettings({
+        ...currentSettings,
+        encryptionKey: driver.encryption_key
+      });
+      currentSettings.encryptionKey = driver.encryption_key;
     }
   }
 
   /**
-   * OnSettings is called when the user updates the device's settings.
-   * @param {object} event the onSettings event data
-   * @param {object} event.oldSettings The old settings object
-   * @param {object} event.newSettings The new settings object
-   * @param {string[]} event.changedKeys An array of keys changed since the previous version
-   * @returns {Promise<string|void>} return a custom message that will be displayed
+   * onAdded is called when the user adds the device, called just after pairing.
    */
-  public override async onSettings({
-    changedKeys,
-    newSettings,
-  }: {
-    changedKeys: string[];
-    newSettings: Record<string, boolean | number | string | null | undefined>;
-    oldSettings: Record<string, boolean | number | string | null | undefined>;
-  }): Promise<string | void> {
-    this.log('Device settings where changed');
+  override async onAdded(): Promise<void> {
+    this.log('Device added');
 
-    // Validate IP if changed
-    if (changedKeys.includes('ip')) {
-      const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      if (!ipRegex.test(String(newSettings['ip']))) {
-        throw new Error(this.homey.__('error.invalid_ip'));
+    try {
+      const driver = this.driver as { encryption_key?: string };
+      if (driver.encryption_key) {
+        this.log('Saving encryption key from driver to device settings');
+        await this.setSettings({ encryptionKey: driver.encryption_key });
       }
+    } catch (error) {
+      this.error('Failed to handle device addition:', getErrorMessage(error));
+      throw error;
+    }
+  }
+
+  /**
+   * onSettings is called when the user updates the device's settings.
+   */
+  override async onSettings({
+    newSettings,
+    changedKeys,
+  }: {
+    newSettings: DeviceSettings;
+    changedKeys: string[];
+  }): Promise<string | void> {
+    this.log('Device settings changed');
+
+    try {
+      // Validate IP if changed
+      if (changedKeys.includes('ip')) {
+        this.validateIpAddress(newSettings.ip);
+      }
+
+      // Reconnect if connection settings changed
+      if (this.shouldReconnect(changedKeys)) {
+        await this.setupClient({
+          host: newSettings.ip as string,
+          port: Number(newSettings.port) || DEFAULT_PORT,
+          encryptionKey: newSettings.encryptionKey
+        });
+      }
+    } catch (error) {
+      this.error('Failed to update settings:', getErrorMessage(error));
+      throw error;
+    }
+  }
+
+  private validateIpAddress(ip?: string): void {
+    if (!ip) return;
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip)) {
+      throw new Error(this.homey.__('error.invalid_ip'));
+    }
+  }
+
+  private shouldReconnect(changedKeys: string[]): boolean {
+    return changedKeys.some(key => ['ip', 'port', 'encryption_key'].includes(key));
+  }
+
+  /**
+   * onRenamed is called when the user updates the device's name.
+   */
+  override async onRenamed(_name: string): Promise<void> {
+    this.log('Device renamed');
+  }
+
+  /**
+   * onDeleted is called when the user deleted the device.
+   */
+  override async onDeleted(): Promise<void> {
+    this.debug('Device deleted');
+    await this.cleanupClient();
+  }
+
+  /**
+   * Handle device discovery result
+   */
+  override onDiscoveryResult(discoveryResult: DiscoveryResult): boolean {
+    const isMatch = discoveryResult.id === this.getData().id;
+    this.debug(`Discovery result match: ${isMatch}`);
+    return isMatch;
+  }
+
+  /**
+   * Handle device discovery availability
+   */
+  override async onDiscoveryAvailable(discoveryResult: DiscoveryResult): Promise<void> {
+    this.debug('Device discovered:', discoveryResult);
+
+    try {
+      const settings = this.getSettings() as DeviceSettings;
+      await this.updateDiscoverySettings(settings, discoveryResult);
+    } catch (error) {
+      this.error('Failed to handle discovery:', getErrorMessage(error));
+    }
+  }
+
+  private async updateDiscoverySettings(settings: DeviceSettings, discoveryResult: DiscoveryResult): Promise<void> {
+    if (typeof discoveryResult.address === 'string' && settings.ip !== discoveryResult.address) {
+      settings.ip = discoveryResult.address;
+      await this.setSettings(settings);
     }
 
-    // If IP, Port or Encryption key has changed, disconnect and reconnect
-    if (changedKeys.includes('ip') || changedKeys.includes('port') || changedKeys.includes('encryption_key')) {
+    if (!this.client?.isDeviceConnected() && !this.client?.isDeviceConnecting()) {
       await this.setupClient({
-        host: String(newSettings['ip'] || newSettings['host']),
-        port: Number(newSettings['port']),
-        encryptionKey: String(newSettings['encryption_key'])
+        host: settings.ip as string,
+        port: Number(settings.port) || DEFAULT_PORT,
+        encryptionKey: settings.encryptionKey
       });
     }
   }
 
   /**
-   * OnRenamed is called when the user updates the device's name.
-   * This method can be used this to synchronise the name to the device.
-   * @param {string} _name The new name
+   * Handle capability updates
    */
-  public override async onRenamed(_name: string) {
-    this.log('ESPHome P1 Reader was renamed');
-  }
-
-  /**
-   * OnDeleted is called when the user deleted the device.
-   */
-  public override async onDeleted() {
-    this.debug('Device deleted');
-
-    // Disconnect and cleanup
-    if (this.device) {
-      try {
-        this.device.terminate();
-      } catch (error) {
-        this.error('Error disconnecting device:', error);
+  private async handleCapabilityUpdate(type: CapabilityType, value: number): Promise<void> {
+    try {
+      this.debug('Updating capability', { type, value, hasCapability: this.hasCapability(type) });
+      
+      if (this.hasCapability(type)) {
+        await this.setCapabilityValue(type, value);
+        this.debug('Capability updated successfully', { type, value });
+      } else {
+        this.debug('Capability not available', { type });
       }
-      this.device = undefined;
-      this.p1Reader = undefined;
+    } catch (error) {
+      this.error(`Failed to update capability ${type}:`, getErrorMessage(error));
     }
   }
 
   /**
-   * Return a truthy value here if the discovery result matches your device.
-   *
-   * @param discoveryResult
-   * @returns
+   * Handle measurement events
    */
-  public override onDiscoveryResult(discoveryResult: DiscoveryResult): boolean {
-    const deviceData = this.getData();
-    const matches = Boolean(discoveryResult.id === deviceData.id || 
-                   (discoveryResult.mac && discoveryResult.mac === deviceData.id) ||
-                   (discoveryResult.txt?.mac && discoveryResult.txt.mac === deviceData.id));
-    this.debug(`result match: ${matches}`, { 
-      discoveryId: discoveryResult.id, 
-      deviceId: deviceData.id,
-      discoveryMac: discoveryResult.mac || discoveryResult.txt?.mac
-    });
-    return matches;
-  }
-
-  /**
-   * This method will be executed once when the device has been found (onDiscoveryResult returned
-   * true).
-   *
-   * @param discoveryResult
-   */
-  private readonly handleError = (error: unknown) => {
-    this.debug('Device error:', error);
-    this.setUnavailable(this.homey.__('error.unavailable'))
-      .catch(err => this.error('Could not set unavailable', err));
-  };
-
-  private readonly handleMeasurement = ({ type, value }: { type: CapabilityType; value: number }) => {
-    this.handleCapabilityUpdate(type, value).catch(error =>
-      { this.error('Failed to handle measurement:', error); }
+  private handleMeasurement = ({ type, value }: { type: string; value: number }): void => {
+    this.handleCapabilityUpdate(type as CapabilityType, value).catch(error =>
+      this.error('Failed to handle measurement:', getErrorMessage(error))
     );
   };
 
-  public override onDiscoveryAvailable(discoveryResult: DiscoveryResult) {
-    this.debug('available', discoveryResult);
-    const settings = this.getSettings();
-    let needsUpdate = false;
+  /**
+   * Handle error events
+   */
+  private handleError = (error: unknown): void => {
+    this.debug('Client error:', error);
 
-    // Update IP if changed
-    if (typeof discoveryResult.address === 'string' && settings.ip !== discoveryResult.address) {
-      settings.ip = discoveryResult.address;
-      needsUpdate = true;
+    if (this.client?.hasEncryptionError()) {
+      this.setUnavailable(this.homey.__('error.unavailable_encrypted'))
+        .catch(err => this.error('Failed to set unavailable state:', getErrorMessage(err)));
+      return;
     }
 
-    // Update host if changed
-    if (typeof discoveryResult.host === 'string' && settings.host !== discoveryResult.host) {
-      settings.host = discoveryResult.host;
-      needsUpdate = true;
-    }
-
-    // Update port if changed
-    if (typeof discoveryResult.port === 'number' && settings.port !== String(discoveryResult.port)) {
-      settings.port = String(discoveryResult.port);
-      needsUpdate = true;
-    }
-
-    // Update version if changed
-    const version = discoveryResult.version || discoveryResult.txt?.version;
-    if (version && settings.esp_home_version !== version) {
-      settings.esp_home_version = version;
-      needsUpdate = true;
-    }
-
-    // Update mac if changed
-    const mac = discoveryResult.mac || discoveryResult.txt?.mac;
-    if (mac && settings.mac !== mac) {
-      settings.mac = mac;
-      needsUpdate = true;
-    }
-
-    // Update settings if needed
-    if (needsUpdate) {
-      this.debug('Updating settings with discovery data:', settings);
-      this.setSettings(settings).catch((err) => {
-        this.error('Failed to update settings from discovery:', err);
+    if (!this.client?.isDeviceConnected() && !this.client?.hasEncryptionError()) {
+      this.client?.connect().catch(connectError => {
+        this.error('Reconnection failed:', getErrorMessage(connectError));
+        this.setUnavailable(this.homey.__('error.unavailable'))
+          .catch(err => this.error('Failed to set unavailable state:', getErrorMessage(err)));
       });
     }
+  };
 
-    // Try to reconnect with new settings if we're not connected
-    if (!this.device) {
-      this.debug('Reconnecting with new settings:', settings);
-      this.setupClient({
-        host: settings.ip || settings.host as string,
-        port: Number(settings.port),
-        encryptionKey: settings.encryption_key as string
-      }).catch(error => {
-        this.error('Failed to setup client:', error);
-      });
-    }
-  }
+  private readonly errorHandler = this.handleError.bind(this);
+  private readonly measurementHandler = this.handleMeasurement.bind(this);
 
-  private async handleCapabilityUpdate(type: CapabilityType, value: number) {
+  /**
+   * Setup client connection
+   */
+  private async setupClient(clientSettings: ClientSettings): Promise<void> {
     try {
-      this.debug('Handling capability update', { hasCapability: this.hasCapability(type), type, value });
-      if (this.hasCapability(type)) {
-        await this.setCapabilityValue(type, value);
-        this.debug('Successfully updated capability value', { type, value });
-      } else {
-        this.debug('Device does not have capability', { type });
-      }
-    } catch (error) {
-      this.error(`Failed to set capability value for ${type}:`, getErrorMessage(error));
-    }
-  }
+      await this.cleanupClient();
 
-  private async setupClient(clientSettings: {
-    host: string;
-    port: number;
-    encryptionKey?: string;
-  }) {
-    try {
-      this.debug('Starting client setup with settings:', clientSettings);
-
-      // Validate settings
-      if (!clientSettings.host) {
-        throw new Error('No host/IP address specified');
-      }
-
-      if (!clientSettings.port || clientSettings.port < 1 || clientSettings.port > 65535) {
-        throw new Error(`Invalid port number: ${clientSettings.port}`);
-      }
-
-      if (!clientSettings.encryptionKey) {
-        throw new Error('Encryption key is required for this device');
-      }
-
-      this.debug('Validating network connectivity...');
-      try {
-        const socket = new net.Socket();
-        await new Promise<void>((resolve, reject) => {
-          socket.on('error', (error) => {
-            reject(new Error(`Cannot connect to ${clientSettings.host}:${clientSettings.port} - ${error.message}`));
-          });
-          socket.on('connect', () => {
-            socket.destroy();
-            resolve();
-          });
-          socket.connect(clientSettings.port, clientSettings.host);
-        });
-        this.debug('Network connectivity test successful');
-      } catch (error) {
-        throw new Error(`Network connectivity test failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-
-      if (this.device) {
-        this.debug('Terminating existing device connection');
-        this.device.terminate();
-        this.device = undefined;
-        this.p1Reader = undefined;
-      }
-
-      this.debug('Creating new client instance with Noise encryption');
-      this.device = new Client(
-        {
-          addresses: [clientSettings.host],
-          port: String(clientSettings.port),
-          password: '', // password is empty since we're using encryption
-          clientInfo: 'esphome-p1reader',
-          keepalive: 20,
-          noisePsk: clientSettings.encryptionKey,
-          expectedName: null,
-          expectedMac: null
-        }
-      );
-
-      if (process.env['NODE_ENV'] === 'development' || process.env['DEBUG'] === '1') {
-        this.debug('Enabling ESPHOME-TS debug logging');
-        this.device.enableLogging('all');
-      } else {
-        this.debug('Disabling ESPHOME-TS debug logging');
-        this.device.disableLogging('all');
-      }
-
-      this.debug('Waiting for client to connect...');
-      // Wait for client to be ready
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error(`Connection timeout after 30 seconds. Please verify that:
-1. The ESPHome device is powered on
-2. The IP address (${clientSettings.host}) is correct
-3. The port (${clientSettings.port}) is correct
-4. The encryption key is correct
-5. The device is accessible on your network`));
-        }, 30000); // 30 second timeout
-
-        this.device!.on('connect', () => {
-          this.debug('Client connected successfully');
-          clearTimeout(timeout);
-          resolve();
-        });
-
-        this.device!.on('error', (error: Error) => {
-          this.debug('Client connection error:', error);
-          clearTimeout(timeout);
-          reject(new Error(`Connection error: ${error.message}`));
-        });
-
-        // Start the connection process
-        this.device!.connect()
-          .catch((error: Error) => {
-            this.debug('Connection process failed:', error);
-            clearTimeout(timeout);
-            reject(error);
-          });
+      this.debug('Setting up new client');
+      this.client = new P1Reader({
+        host: clientSettings.host,
+        port: String(clientSettings.port),
+        password: null,
+        clientInfo: 'homey-esphome-p1reader',
+        keepalive: KEEPALIVE_INTERVAL,
+        encryptionKey: clientSettings.encryptionKey || null,
+        expectedName: null,
+        expectedMac: null
       });
 
-      this.debug('Creating P1Reader instance');
-      // Create P1Reader with the existing client
-      this.p1Reader = new P1Reader(this.device);
-
-      this.p1Reader.on('measurement', (measurement) => {
-        this.debug('Received measurement:', measurement);
-        this.handleMeasurement(measurement);
-      });
-      this.p1Reader.on('error', (error) => {
-        this.debug('Received error from P1Reader:', error);
-        this.handleError(error);
-      });
-
-      this.debug('Device connection established');
+      this.setupClientListeners();
+      await this.client.connect();
       this.setAvailable();
-
-      // First get the entity list
-      this.debug('Getting entity list');
-      await this.p1Reader.getEntitiesList();
-      this.debug('Entity list received');
-
-      // Then subscribe to state changes
-      this.debug('Subscribing to state changes');
-      await this.p1Reader.subscribeStateChange();
-      this.debug('State change subscription successful');
     } catch (error) {
-      this.error('Failed to setup client:', error);
+      this.error('Client setup failed:', getErrorMessage(error));
       this.setUnavailable(getErrorMessage(error));
-      throw error; // Re-throw to be caught by onInit
     }
   }
-}
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {return error.message;}
-  return String(error);
+  private setupClientListeners(): void {
+    if (!this.client) return;
+
+    this.client.removeAllListeners('measurement');
+    this.client.removeAllListeners('error');
+    
+    this.client.on('measurement', this.measurementHandler);
+    this.client.on('error', this.errorHandler);
+  }
+
+  private async cleanupClient(): Promise<void> {
+    if (this.client) {
+      try {
+        this.client.removeAllListeners('measurement');
+        this.client.removeAllListeners('error');
+        await this.client.disconnect();
+      } catch (error) {
+        this.error('Client cleanup failed:', getErrorMessage(error));
+      }
+      this.client = undefined;
+    }
+  }
 }
 
 export default EspHomeP1ReaderDevice;

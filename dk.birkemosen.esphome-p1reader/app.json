@@ -232,7 +232,7 @@
           },
           "children": [
             {
-              "id": "encryption_key",
+              "id": "encryptionKey",
               "type": "text",
               "label": {
                 "en": "Encryption key",
