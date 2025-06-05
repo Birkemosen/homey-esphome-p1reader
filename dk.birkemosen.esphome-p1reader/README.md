@@ -1,3 +1,12 @@
-The ESPHome P1 Reader app enables you to monitor your smart meter's energy consumption and production in real-time through Homey. By connecting an ESP8266 or ESP32 device running ESPHome firmware to your smart meter's P1 port, you can track detailed power measurements including consumption, production, voltage, and current for all three phases. The app seamlessly integrates with Homey's Energy module and automatically discovers compatible devices on your network.
+# ESPHome P1 Reader
 
-This integration requires a Homey Pro (2019 or newer), an ESP8266/ESP32 device with ESPHome firmware, and a smart meter with a P1 port (DSMR v4.0 or higher). The app supports encrypted connections for secure communication between your Homey and the ESP device. For optimal performance, ensure both your Homey and ESP device are connected to the same local network.
+## Introduction
+This app adds the ESPHome P1 Reader (https://github.com/psvanstrom/esphome-p1reader) into Homey.
+
+## History
+
+### v1.0.0 - 05.06.2025
+- Initial release
+
+## Final note ##
+The repository is available at: https://github.com/birkemosen/homey-esphome-p1reader
