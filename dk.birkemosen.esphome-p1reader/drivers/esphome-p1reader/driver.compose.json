@@ -151,9 +151,8 @@
   "discovery": "esp-p1reader",
   "icon": "{{driverAssetsPath}}/icon.svg",
   "images": {
-    "small": "{{driverAssetsPath}}/images/small.png",
-    "large": "{{driverAssetsPath}}/images/large.png",
-    "xlarge": "{{driverAssetsPath}}/images/xlarge.png"
+    "small": "{{driverAssetsPath}}/images/small.jpg",
+    "large": "{{driverAssetsPath}}/images/large.jpg"
   },
   "pair": [
     {

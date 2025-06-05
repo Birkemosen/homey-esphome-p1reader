@@ -200,9 +200,8 @@
       "discovery": "esp-p1reader",
       "icon": "/drivers/esphome-p1reader/assets/icon.svg",
       "images": {
-        "small": "/drivers/esphome-p1reader/assets/images/small.png",
-        "large": "/drivers/esphome-p1reader/assets/images/large.png",
-        "xlarge": "/drivers/esphome-p1reader/assets/images/xlarge.png"
+        "small": "/drivers/esphome-p1reader/assets/images/small.jpg",
+        "large": "/drivers/esphome-p1reader/assets/images/large.jpg"
       },
       "pair": [
         {
