@@ -5,6 +5,8 @@ This app adds the ESPHome P1 Reader (https://github.com/psvanstrom/esphome-p1rea
 
 ## History
 
+### v1.0.1 - 24.06.2025
+- Improve error handling on device disconnect
 ### v1.0.0 - 05.06.2025
 - Initial release
 

@@ -3,7 +3,7 @@ import { Connection } from './esphome-ts/connection.mts';
 
 // Simple debug function that only logs in development
 const debug = (...args: any[]) => {
-    console.log('[esphome-p1reader:esphome]', ...args);
+  console.log('[esphome-p1reader:esphome]', ...args);
 };
 
 export interface EntityState {
@@ -41,6 +41,16 @@ class P1Reader extends EventEmitter {
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
   private reconnectAttempts: number = 0;
   private readonly DEFAULT_MAX_LISTENERS = 50;
+  private lastError: Error | null = null;
+  private lastErrorTime: number = 0;
+  private readonly ERROR_COOLDOWN = 5000; // 5 seconds cooldown between error events
+  private readonly ERROR_TYPES = {
+    CONNECTION: 'connection_error',
+    ENCRYPTION: 'encryption_error',
+    DATA: 'data_error',
+    NETWORK: 'network_error',
+    UNKNOWN: 'unknown_error'
+  } as const;
   private readonly phaseMap: Map<string, string> = new Map([
     ['1', 'l1'],
     ['2', 'l2'],
@@ -62,7 +72,7 @@ class P1Reader extends EventEmitter {
     super();
     // Set default max listeners
     this.setMaxListeners(this.DEFAULT_MAX_LISTENERS);
-    
+
     // Pre-allocate pool objects
     this.measurementPool = Array.from({ length: this.POOL_SIZE }, () => ({ type: '', value: 0 }));
     const options = {
@@ -92,7 +102,7 @@ class P1Reader extends EventEmitter {
     });
 
     this.connection = new Connection(options);
-    
+
     // Listen for encryption required event
     this.connection.on('encryption_required', () => {
       debug('Encryption required but no key provided');
@@ -241,14 +251,88 @@ class P1Reader extends EventEmitter {
     }
   }
 
+  private classifyError(error: Error): string {
+    const message = error.message.toLowerCase();
+    if (message.includes('encryption')) return this.ERROR_TYPES.ENCRYPTION;
+    if (message.includes('econnrefused') || message.includes('econnreset')) return this.ERROR_TYPES.CONNECTION;
+    if (message.includes('ehostunreach') || message.includes('enetunreach')) return this.ERROR_TYPES.NETWORK;
+    if (message.includes('write after end') || message.includes('invalid entity')) return this.ERROR_TYPES.DATA;
+    return this.ERROR_TYPES.UNKNOWN;
+  }
+
+  private handleError(error: Error): void {
+    const now = Date.now();
+    const errorType = this.classifyError(error);
+
+    // Prevent error spam by implementing a cooldown
+    if (now - this.lastErrorTime < this.ERROR_COOLDOWN) {
+      debug('Error cooldown active, suppressing error:', error.message);
+      return;
+    }
+
+    this.lastError = error;
+    this.lastErrorTime = now;
+
+    debug('Handling error:', {
+      type: errorType,
+      message: error.message,
+      reconnectAttempts: this.reconnectAttempts,
+      isConnected: this.isConnected
+    });
+
+    // Emit error with additional context
+    this.emit('error', {
+      error,
+      type: errorType,
+      timestamp: now,
+      reconnectAttempts: this.reconnectAttempts,
+      isConnected: this.isConnected
+    });
+
+    // Handle specific error types
+    switch (errorType) {
+      case this.ERROR_TYPES.ENCRYPTION:
+        this.isEncryptionError = true;
+        this.emit('encryption_required');
+        break;
+      case this.ERROR_TYPES.CONNECTION:
+      case this.ERROR_TYPES.NETWORK:
+        this.handleConnectionError();
+        break;
+      case this.ERROR_TYPES.DATA:
+        // For data errors, we might want to try reconnecting
+        if (this.isConnected) {
+          this.handleConnectionError();
+        }
+        break;
+    }
+  }
+
+  private handleConnectionError(): void {
+    if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      this.reconnectAttempts++;
+      debug('Attempting reconnection', {
+        attempt: this.reconnectAttempts,
+        maxAttempts: this.MAX_RECONNECT_ATTEMPTS
+      });
+
+      // Exponential backoff for reconnection attempts
+      const backoffTime = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+      setTimeout(() => this.connect(), backoffTime);
+    } else {
+      debug('Max reconnection attempts reached');
+      this.emit('max_reconnect_attempts_reached');
+    }
+  }
+
   async connect(): Promise<void> {
     if (this.isConnecting || this.isEncryptionError) {
-      console.log('[esphome-p1reader:esphome] Skipping connect request - already connecting or encryption error');
+      debug('Skipping connect request - already connecting or encryption error');
       return;
     }
 
     if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-      console.error('[esphome-p1reader:esphome] Max reconnection attempts reached, stopping reconnection');
+      debug('Max reconnection attempts reached, stopping reconnection');
       return;
     }
 
@@ -259,7 +343,7 @@ class P1Reader extends EventEmitter {
       this.cleanup();
 
       // Setup event listeners
-      this.connection.on('error', this.errorHandler);
+      this.connection.on('error', (error: Error) => this.handleError(error));
       this.connection.on('disconnected', this.disconnectedHandler);
       this.connection.on('authorized', this.authorizedHandler);
       this.connection.on('message.SensorStateResponse', this.sensorStateHandler);
@@ -267,17 +351,10 @@ class P1Reader extends EventEmitter {
 
       // Connect
       await this.connection.connect();
-      console.log('[esphome-p1reader:esphome] Connected');
+      debug('Connected successfully');
+      this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
     } catch (error) {
-      console.error('[esphome-p1reader:esphome] Failed to connect:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes('Bad format: Encryption expected')) {
-        this.isEncryptionError = true;
-      }
-
-      this.isConnected = false;
-      this.emit('error', error);
+      this.handleError(error instanceof Error ? error : new Error(String(error)));
       throw error;
     } finally {
       this.isConnecting = false;
@@ -336,6 +413,10 @@ class P1Reader extends EventEmitter {
     return this.isEncryptionError;
   }
 
+  getLastError(): Error | null {
+    return this.lastError;
+  }
+
   private getMeasurementObject(type: string, value: number) {
     const obj = this.measurementPool.length > 0 ?
       this.measurementPool.pop()! :
@@ -345,32 +426,12 @@ class P1Reader extends EventEmitter {
     return obj;
   }
 
-  private errorHandler = (error: Error) => {
-    // Use console.error directly instead of debug to avoid recursion
-    console.error('[esphome-p1reader:esphome] Error:', error);
-    this.isConnected = false;
-    this.isConnecting = false;
-    
-    // Increment reconnect attempts
-    this.reconnectAttempts++;
-    
-    // Only emit error if we're not already in an error state
-    if (!this.isEncryptionError) {
-      if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-        console.error('[esphome-p1reader:esphome] Max reconnection attempts reached, stopping reconnection');
-        this.emit('error', new Error('Max reconnection attempts reached'));
-        return;
-      }
-      this.emit('error', error);
-    }
-  };
-
   private disconnectedHandler = () => {
     // Use console.log directly instead of debug to avoid recursion
     console.log('[esphome-p1reader:esphome] Disconnected');
     this.isConnecting = false;
     this.isConnected = false;
-    
+
     // Only emit disconnected if we're not already disconnected
     if (this.isConnected) {
       if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
@@ -388,15 +449,15 @@ class P1Reader extends EventEmitter {
     try {
       debug('Requesting entity list...');
       await this.connection.listEntitiesService();
-      
+
       // Wait a short time to ensure entities are processed
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       debug('Current entities:', {
         count: this.entities.size,
         keys: Array.from(this.entities.keys())
       });
-      
+
       debug('Subscribing to states...');
       await this.subscribeToStates();
     } catch (error) {
